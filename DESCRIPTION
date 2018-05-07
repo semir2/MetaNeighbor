@@ -10,7 +10,7 @@ Description: MetaNeighbor allows users to quantify cell type replicability acros
     datasets using neighbor voting.
 biocViews: GeneExpression, GO, MultipleComparison, SingleCell, Transcriptomics
 License: MIT + file LICENSE
-Depends: R(>= 3)
+Depends: R(>= 3.0)
 Imports: beanplot (>= 1.2),
          gplots (>= 3.0.1), 
          RColorBrewer (>= 1.1), 
