@@ -12,11 +12,11 @@ biocViews: GeneExpression, GO, MultipleComparison, SingleCell, Transcriptomics
 License: MIT + file LICENSE
 Depends: R(>= 3.0)
 Imports: beanplot (>= 1.2),
-         gplots (>= 3.0.1), 
+         gplots (>= 3.0), 
          RColorBrewer (>= 1.1), 
-         stats (>= 3.4), 
+         stats (>= 3.0), 
          SummarizedExperiment (>= 1.6.5), 
-         utils (>= 3.4)
+         utils (>= 3.0)
 Suggests: knitr (>= 1.17), rmarkdown (>= 1.6), testthat (>= 1.0.2)
 LazyData: true
 RoxygenNote: 6.0.1
