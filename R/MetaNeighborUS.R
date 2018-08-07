@@ -30,7 +30,7 @@
 #' @export
 #'
 
-MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type, fast_version = TRUE){
+MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type, fast_version = FALSE){
 
     dat    <- SummarizedExperiment::assay(dat, i = i)
     samples <- colnames(dat)
