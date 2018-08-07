@@ -6,23 +6,23 @@
 #'
 #' @param var_genes vector of high variance genes.
 #' @param dat SummarizedExperiment object containing gene-by-sample
-#' expression matrix. 
+#' expression matrix.
 #' @param i default value 1; non-zero index value of assay containing the matrix
 #' data
 #' @param study_id a vector that lists the Study (dataset) ID for each sample
 #' @param cell_type a vector that lists the cell type of each sample
-#' 
-#' @return The output is a cell type-by-cell type mean AUROC matrix, which is 
-#' built by treating each pair of cell types as testing and training data for 
+#'
+#' @return The output is a cell type-by-cell type mean AUROC matrix, which is
+#' built by treating each pair of cell types as testing and training data for
 #' MetaNeighbor, then taking the average AUROC for each pair (NB scores will not
-#' be identical because each test cell type is scored out of its own dataset, 
+#' be identical because each test cell type is scored out of its own dataset,
 #' and the differential heterogeneity of datasets will influence scores).
 #'
 #' @examples
 #' data(mn_data)
 #' var_genes = variableGenes(dat = mn_data, exp_labels = mn_data$study_id)
-#' celltype_NV = MetaNeighborUS(var_genes = var_genes, 
-#'                              dat = mn_data, 
+#' celltype_NV = MetaNeighborUS(var_genes = var_genes,
+#'                              dat = mn_data,
 #'                              study_id = mn_data$study_id,
 #'                              cell_type = mn_data$cell_type)
 #' celltype_NV
@@ -30,21 +30,41 @@
 #' @export
 #'
 
-MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type){
-    
+MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type, fast_version = TRUE){
+
     dat    <- SummarizedExperiment::assay(dat, i = i)
     samples <- colnames(dat)
-    
+
     #check obj contains study_id
     if(length(study_id)!=length(samples)){
         stop('study_id length does not match number of samples')
     }
-    
+
     #check obj contains cell_type
     if(length(cell_type)!=length(samples)){
         stop('cell_type length does not match number of samples')
-    } 
-    
+    }
+
+    matching_vargenes <- match(rownames(dat), var_genes)
+    matching_vargenes_count   <- sum(!is.na(matching_vargenes))
+
+    if(matching_vargenes_count < 2){
+        stop("matching_vargenes should have more than 1 matching genes!",
+             call. = TRUE)
+    } else if(matching_vargenes_count < 5) {
+        warning("matching_vargenes should have more matching genes!",
+                immediate. = TRUE)
+    }
+    dat <- dat[!is.na(matching_vargenes),]
+
+    if (fast_version) {
+      return MetaNeighborUSFast(dat, study_id, cell_type)
+    } else {
+      return MetaNeighborUSDefault(dat, study_id, cell_type)
+    }
+}
+
+MetaNeighborUSDefault <- function(dat, study_id, cell_type) {
     pheno <- as.data.frame(cbind(study_id,cell_type), stringsAsFactors = FALSE)
     pheno$StudyID_CT <- paste(pheno$study_id, pheno$cell_type, sep = "|")
     celltypes   <- unique(pheno$StudyID_CT)
@@ -58,25 +78,14 @@ MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type){
         cell_labels[!is.na(matching_celltype),i]  <- 1
     }
 
-    matching_vargenes <- match(rownames(dat), var_genes)
-    matching_vargenes_count   <- sum(!is.na(matching_vargenes))
-
-    if(matching_vargenes_count < 2){
-        stop("matching_vargenes should have more than 1 matching genes!",
-             call. = TRUE)
-    } else if(matching_vargenes_count < 5) {
-        warning("matching_vargenes should have more matching genes!", 
-                immediate. = TRUE)
-    }
-
-    cor_data    <- stats::cor(dat[!is.na(matching_vargenes),], method="s")
+    cor_data    <- stats::cor(dat, method="s")
     rank_data   <- cor_data*0
     rank_data[] <- rank(cor_data, ties.method = "average", na.last = "keep")
     rank_data[is.na(rank_data)] <- 0
     rank_data   <- rank_data/max(rank_data)
     sum_in      <- (rank_data) %*% cell_labels
-    sum_all     <- matrix(apply(rank_data, MARGIN = 2, FUN = sum), 
-                          ncol = dim(sum_in)[2], 
+    sum_all     <- matrix(apply(rank_data, MARGIN = 2, FUN = sum),
+                          ncol = dim(sum_in)[2],
                           nrow = dim(sum_in)[1])
     predicts    <- sum_in/sum_all
 
@@ -92,10 +101,10 @@ MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type){
         matching_studyID  <- match(pheno$study_id, unique_studyID)
         pheno2            <- pheno[!is.na(matching_studyID),]
         predicts_temp     <- predicts_temp[!is.na(matching_studyID),]
-        predicts_temp     <- apply(abs(predicts_temp), 
-                                   MARGIN = 2, 
-                                   FUN = rank, 
-                                   na.last= "keep", 
+        predicts_temp     <- apply(abs(predicts_temp),
+                                   MARGIN = 2,
+                                   FUN = rank,
+                                   na.last= "keep",
                                    ties.method="average")
 
 
@@ -117,4 +126,34 @@ MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type){
 
     cell_NV <- (cell_NV+t(cell_NV))/2
     return(cell_NV)
+}
+
+MetaNeighborUSFast <- function(dat, study_id, cell_type) {
+  dat <- normalize_cols(dat)
+  colnames(dat) <- paste(study_id, cell_type, sep = "|")
+  studies <- unique(study_id)
+  data_subsets <- find_subsets(study_id, studies)
+  result <- create_result_matrix(colnames(dat))
+  for (study_A_index in seq_along(studies)) {
+    study_A <- dat[, data_subsets[, study_A_index]]
+    for (study_B_index in study_A_index:length(studies)) {
+      study_B <- dat[, data_subsets[, study_B_index]]
+      # study B votes for study A
+      votes <- compute_votes_without_network(study_A, study_B)
+      aurocs <- compute_aurocs(votes)
+      result[rownames(aurocs), colnames(aurocs)] <- aurocs
+      # study A votes for study B
+      votes <- compute_votes_without_network(study_B, study_A)
+      aurocs <- compute_aurocs(votes)
+      result[rownames(aurocs), colnames(aurocs)] <- aurocs
+    }
+  }
+  return(result)
+}
+
+compute_votes_without_network <- function(candidates, voters) {
+  voter_identity <- design_matrix(colnames(voters))
+  raw_votes <- crossprod(candidates, voters %*% voter_identity)
+  return(sweep(raw_votes, 2, colSums(voter_identity), FUN = "+")) /
+         (c(crossprod(candidates, rowSums(voters))) + rep(ncol(voters), ncol(candidates)))
 }
