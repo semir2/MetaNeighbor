@@ -11,6 +11,8 @@
 #' data
 #' @param study_id a vector that lists the Study (dataset) ID for each sample
 #' @param cell_type a vector that lists the cell type of each sample
+#' @param fast_version default value FALSE; a boolean flag indicating whether
+#' to use the fast and low memory version of MetaNeighbor
 #'
 #' @return The output is a cell type-by-cell type mean AUROC matrix, which is
 #' built by treating each pair of cell types as testing and training data for
