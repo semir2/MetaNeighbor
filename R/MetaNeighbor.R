@@ -22,7 +22,7 @@
 #' @param experiment_labels A numerical vector that indicates the source of each
 #' sample.
 #' @param celltype_labels A matrix that indicates the cell type of each sample.
-#' @param genesets Gene sets of interest provided as a list of vectors. 
+#' @param genesets Gene sets of interest provided as a list of vectors.
 #' @param bplot default true, beanplot is generated
 #' @return A matrix of AUROC scores representing the mean for each gene set
 #' tested for each celltype is returned directly (see \code{\link{neighborVoting}}).
@@ -40,32 +40,52 @@
 #' @export
 #'
 
-MetaNeighbor <-function(dat, i = 1, experiment_labels, celltype_labels, genesets, bplot = TRUE) {
-    
+MetaNeighbor <-function(dat, i = 1, experiment_labels, celltype_labels, genesets, bplot = TRUE, fast_version = FALSE) {
+
     dat <- SummarizedExperiment::assay(dat, i = i)
-    
+
     #check length of experiment_labels equal # of samples
     if(length(experiment_labels) != length(colnames(dat))){
         stop('experiment_labels length does not match number of samples')
     }
-    
+
     #check length of celltype_labels equal # of samples
     if(length(rownames(celltype_labels)) != length(colnames(dat))){
         stop('celltype_labels length does not match number of samples')
     }
-    
+
     #check obj contains more than 1 unique study_id
     if(length(unique(experiment_labels)) < 2){
         stop('Found only 1 unique experiment_label. Please use data from more than 1 study!')
     }
-    
+
     #check genesets matches more than 1 genes in gene_matrix
     genes_in_geneset <- as.character(unlist(genesets))
     genes_in_matrix <- rownames(dat)
     if(length(intersect(genes_in_geneset,genes_in_matrix)) < 1)
         stop('No matching genes between genesets and gene_matrix')
-    
-    
+
+    if (fast_version) {
+      nv_mat <- MetaNeighborLowMem(dat, experiment_labels, celltype_labels, genesets)
+    } else {
+      nv_mat <- MetaNeighborDefault(dat, experiment_labels, celltype_labels, genesets)
+    }
+
+    if(bplot){
+        Celltype = rep(colnames(nv_mat),each=dim(nv_mat)[1])
+        ROCValues = unlist(lapply(seq_len(dim(nv_mat)[2]), function(i) nv_mat[,i]))
+        beanplot::beanplot(ROCValues ~ Celltype,
+                           border="NA",
+                           col="gray",
+                           ylab="AUROC",
+                           what=c(0,1,1,1),
+                           frame.plot = FALSE)
+    }
+
+    return(nv_mat)
+}
+
+MetaNeighborDefault <- function(dat, experiment_labels, celltype_labels, genesets) {}
     ROCs              <- vector(mode = "list", length = length(genesets))
     names(ROCs)       <- names(genesets)
     nv_mat            <- matrix(data = 0,
@@ -94,17 +114,44 @@ MetaNeighbor <-function(dat, i = 1, experiment_labels, celltype_labels, genesets
     for(i in seq_along(ROCs)){
         nv_mat[i,] <- round(rowMeans(ROCs[[i]][[1]], na.rm = TRUE),3)
     }
-    
-    if(bplot){
-        Celltype = rep(colnames(nv_mat),each=dim(nv_mat)[1])
-        ROCValues = unlist(lapply(seq_len(dim(nv_mat)[2]), function(i) nv_mat[,i]))
-        beanplot::beanplot(ROCValues ~ Celltype, 
-                           border="NA", 
-                           col="gray", 
-                           ylab="AUROC", 
-                           what=c(0,1,1,1),
-                           frame.plot = FALSE)
-    }
-    
+
     return(nv_mat)
+}
+
+celltype_matrix_to_vector <- function(celltype_matrix) {
+  
+}
+
+MetaNeighborLowMem <- function(dat, study_id, cell_type, genesets, skip_network = TRUE) {
+  nv_mat <- matrix(0, ncol = length(unique(cell_type)), nrow = length(genesets))
+  rownames(nv_mat) <- names(genesets)
+  colnames(nv_mat) <- levels(as.factor(cell_type))
+  for (l in seq_along(genesets)) {
+    print(names(genesets)[l])
+    geneset <- genesets[[l]]
+    geneset_dat <- dat[!is.na(match(rownames(dat), geneset)), ]
+    # remove cells that end up having zero expressed genes
+    geneset_dat <- geneset_dat[, colSums(geneset_dat) > 0]
+    geneset_dat <- normalize_cols(geneset_dat)
+    aurocs <- c()
+    for (study in unique(study_id)) {
+      votes <- compute_votes(geneset_dat[, study_id == study],
+                             geneset_dat[, study_id != study],
+                             skip_network)
+      aurocs <- rbind(aurocs, diag(compute_aurocs(votes)))
+    }
+    nv_mat[l,] <- colMeans(aurocs)
+  }
+  return(nv_mat)
+}
+
+compute_votes <- function(candidates, voters, skip_network) {
+  if (skip_network) {
+    return(compute_votes_without_network(candidates, voters))
+  } else {
+    network <- build_network(candidates, voters)
+    votes <- compute_votes_from_network(network)
+    rm(network); gc()
+    return(votes)
+  }
 }
