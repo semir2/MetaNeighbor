@@ -1,4 +1,5 @@
-
+#' Contains a collection of utility functions
+#'
 normalize_cols <- function(M, ranked = TRUE) {
   if (ranked) {
     M <- apply(M, 2, rank) - (nrow(M)+1)/2
