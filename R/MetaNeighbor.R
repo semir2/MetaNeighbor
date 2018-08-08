@@ -65,10 +65,28 @@ MetaNeighbor <-function(dat, i = 1, experiment_labels, celltype_labels, genesets
     if(length(intersect(genes_in_geneset,genes_in_matrix)) < 1)
         stop('No matching genes between genesets and gene_matrix')
 
-    if (fast_version) {
-      nv_mat <- MetaNeighborLowMem(dat, experiment_labels, celltype_labels, genesets)
-    } else {
-      nv_mat <- MetaNeighborDefault(dat, experiment_labels, celltype_labels, genesets)
+    ROCs              <- vector(mode = "list", length = length(genesets))
+    names(ROCs)       <- names(genesets)
+    nv_mat            <- matrix(data = 0,
+                                ncol = dim(celltype_labels)[2],
+                                nrow = length(genesets))
+    rownames(nv_mat)  <- names(genesets)
+    colnames(nv_mat)  <- colnames(celltype_labels)
+
+    for(l in seq_along(genesets)){
+        print(names(genesets)[l])
+        geneset     <- genesets[[l]]
+        m           <- match(rownames(dat), geneset)
+        dat_sub     <- dat[!is.na(m),]
+        if (fast_version) {
+          ROCs[[l]] <- score_low_mem(dat_sub, experiment_labels, celltype_labels)
+        } else {
+          ROCs[[l]] <- score_default(dat_sub, experiment_labels, celltype_labels)
+        }
+    }
+
+    for(i in seq_along(ROCs)){
+        nv_mat[i,] <- round(rowMeans(ROCs[[i]][[1]], na.rm = TRUE),3)
     }
 
     if(bplot){
@@ -85,66 +103,47 @@ MetaNeighbor <-function(dat, i = 1, experiment_labels, celltype_labels, genesets
     return(nv_mat)
 }
 
-MetaNeighborDefault <- function(dat, experiment_labels, celltype_labels, genesets) {
-    ROCs              <- vector(mode = "list", length = length(genesets))
-    names(ROCs)       <- names(genesets)
-    nv_mat            <- matrix(data = 0,
-                                ncol = dim(celltype_labels)[2],
-                                nrow = length(genesets))
-    rownames(nv_mat)  <- names(genesets)
-    colnames(nv_mat)  <- colnames(celltype_labels)
-
-    for(l in seq_along(genesets)){
-        print(names(genesets)[l])
-        geneset     <- genesets[[l]]
-        m           <- match(rownames(dat), geneset)
-        dat_sub     <- dat[!is.na(m),]
-        dat_sub     <- stats::cor(dat_sub, method = "s")
-        dat_sub     <- as.matrix(dat_sub)
-        rank_dat    <- dat_sub
-        rank_dat[]  <- rank(dat_sub, ties.method = "average", na.last = "keep")
-        rank_dat[is.na(rank_dat)] <- 0
-        rank_dat    <- rank_dat/max(rank_dat)
-        ROCs[[l]]   <- neighborVoting(experiment_labels,
-                                      celltype_labels,
-                                      rank_dat,
-                                      means = FALSE)
-    }
-
-    for(i in seq_along(ROCs)){
-        nv_mat[i,] <- round(rowMeans(ROCs[[i]][[1]], na.rm = TRUE),3)
-    }
-
-    return(nv_mat)
+#' Compute ROCs according to the default procedure
+score_default <- function(dat_sub, experiment_labels, celltype_labels) {
+  dat_sub     <- stats::cor(dat_sub, method = "s")
+  dat_sub     <- as.matrix(dat_sub)
+  rank_dat    <- dat_sub
+  rank_dat[]  <- rank(dat_sub, ties.method = "average", na.last = "keep")
+  rank_dat[is.na(rank_dat)] <- 0
+  rank_dat    <- rank_dat/max(rank_dat)
+  return(neighborVoting(experiment_labels,
+                        celltype_labels,
+                        rank_dat,
+                        means = FALSE))
 }
 
-MetaNeighborLowMem <- function(dat, study_id, celltype_labels, genesets, skip_network = TRUE) {
-  nv_mat <- matrix(0, ncol = ncol(celltype_labels), nrow = length(genesets))
-  rownames(nv_mat) <- names(genesets)
-  colnames(nv_mat) <- colnames(celltype_labels)
-  for (l in seq_along(genesets)) {
-    print(names(genesets)[l])
-    geneset <- genesets[[l]]
-    geneset_dat <- dat[!is.na(match(rownames(dat), geneset)), ]
-    # remove cells that end up having zero expressed genes
-    geneset_dat <- geneset_dat[, colSums(geneset_dat) > 0]
-    geneset_dat <- normalize_cols(geneset_dat)
-    aurocs <- c()
-    for (study in unique(study_id)) {
-      votes <- compute_votes(candidates = geneset_dat[, study_id == study],
-                             voters = geneset_dat[, study_id != study],
-                             voter_id = celltype_labels[study_id != study, ],
-                             skip_network)
-      all_aurocs <- compute_aurocs(
-        votes, candidate_id = celltype_labels[study_id == study, ]
-      )
-      aurocs <- rbind(aurocs, diag(all_aurocs))
-    }
-    nv_mat[l,] <- colMeans(aurocs)
+#' Compute ROCs using the approximate low memory version
+score_low_mem <- function(dat_sub, study_id, celltype_labels, skip_network = TRUE) {
+  # remove cells that have zero expressed genes
+  nonzero_cells <- colSums(dat_sub) > 0
+  dat_sub <- dat_sub[, nonzero_cells]
+  study_id <- study_id[nonzero_cells]
+  celltype_labels <- celltype_labels[nonzero_cells,]
+
+  dat_sub <- normalize_cols(dat_sub)
+
+  unique_study_ids <- unique(study_id)
+  aurocs <- c()
+  for (study in unique_study_ids) {
+    votes <- compute_votes(candidates = dat_sub[, study_id == study],
+                           voters = dat_sub[, study_id != study],
+                           voter_id = celltype_labels[study_id != study,],
+                           skip_network)
+    all_aurocs <- compute_aurocs(
+      votes, candidate_id = celltype_labels[study_id == study, ]
+    )
+    aurocs <- cbind(aurocs, diag(all_aurocs))
   }
-  return(nv_mat)
+  colnames(aurocs) <- unique_study_ids
+  return(list(aurocs))
 }
 
+#' Compute neighbor voting for a given set of candidates and voters
 compute_votes <- function(candidates, voters, voter_id, skip_network) {
   if (skip_network) {
     return(compute_votes_without_network(candidates, voters, voter_id))
