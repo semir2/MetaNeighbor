@@ -85,7 +85,7 @@ MetaNeighbor <-function(dat, i = 1, experiment_labels, celltype_labels, genesets
     return(nv_mat)
 }
 
-MetaNeighborDefault <- function(dat, experiment_labels, celltype_labels, genesets) {}
+MetaNeighborDefault <- function(dat, experiment_labels, celltype_labels, genesets) {
     ROCs              <- vector(mode = "list", length = length(genesets))
     names(ROCs)       <- names(genesets)
     nv_mat            <- matrix(data = 0,
@@ -119,9 +119,9 @@ MetaNeighborDefault <- function(dat, experiment_labels, celltype_labels, geneset
 }
 
 MetaNeighborLowMem <- function(dat, study_id, celltype_labels, genesets, skip_network = TRUE) {
-  nv_mat <- matrix(0, ncol = length(unique(cell_type)), nrow = length(genesets))
+  nv_mat <- matrix(0, ncol = ncol(celltype_labels), nrow = length(genesets))
   rownames(nv_mat) <- names(genesets)
-  colnames(nv_mat) <- levels(as.factor(cell_type))
+  colnames(nv_mat) <- colnames(celltype_labels)
   for (l in seq_along(genesets)) {
     print(names(genesets)[l])
     geneset <- genesets[[l]]
