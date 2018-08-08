@@ -118,11 +118,7 @@ MetaNeighborDefault <- function(dat, experiment_labels, celltype_labels, geneset
     return(nv_mat)
 }
 
-celltype_matrix_to_vector <- function(celltype_matrix) {
-  
-}
-
-MetaNeighborLowMem <- function(dat, study_id, cell_type, genesets, skip_network = TRUE) {
+MetaNeighborLowMem <- function(dat, study_id, celltype_labels, genesets, skip_network = TRUE) {
   nv_mat <- matrix(0, ncol = length(unique(cell_type)), nrow = length(genesets))
   rownames(nv_mat) <- names(genesets)
   colnames(nv_mat) <- levels(as.factor(cell_type))
@@ -135,19 +131,23 @@ MetaNeighborLowMem <- function(dat, study_id, cell_type, genesets, skip_network 
     geneset_dat <- normalize_cols(geneset_dat)
     aurocs <- c()
     for (study in unique(study_id)) {
-      votes <- compute_votes(geneset_dat[, study_id == study],
-                             geneset_dat[, study_id != study],
+      votes <- compute_votes(candidates = geneset_dat[, study_id == study],
+                             voters = geneset_dat[, study_id != study],
+                             voter_id = celltype_labels[study_id != study, ],
                              skip_network)
-      aurocs <- rbind(aurocs, diag(compute_aurocs(votes)))
+      all_aurocs <- compute_aurocs(
+        votes, candidate_id = celltype_labels[study_id == study, ]
+      )
+      aurocs <- rbind(aurocs, diag(all_aurocs))
     }
     nv_mat[l,] <- colMeans(aurocs)
   }
   return(nv_mat)
 }
 
-compute_votes <- function(candidates, voters, skip_network) {
+compute_votes <- function(candidates, voters, voter_id, skip_network) {
   if (skip_network) {
-    return(compute_votes_without_network(candidates, voters))
+    return(compute_votes_without_network(candidates, voters, voter_id))
   } else {
     network <- build_network(candidates, voters)
     votes <- compute_votes_from_network(network)
