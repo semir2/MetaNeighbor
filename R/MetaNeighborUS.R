@@ -60,10 +60,13 @@ MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type, fast_vers
     dat <- dat[!is.na(matching_vargenes),]
 
     if (fast_version) {
-      return MetaNeighborUSLowMem(dat, study_id, cell_type)
+      cell_NV <- MetaNeighborUSLowMem(dat, study_id, cell_type)
     } else {
-      return MetaNeighborUSDefault(dat, study_id, cell_type)
+      cell_NV <- MetaNeighborUSDefault(dat, study_id, cell_type)
     }
+
+    cell_NV <- (cell_NV+t(cell_NV))/2
+    return(cell_NV)
 }
 
 MetaNeighborUSDefault <- function(dat, study_id, cell_type) {
@@ -125,8 +128,6 @@ MetaNeighborUSDefault <- function(dat, study_id, cell_type) {
 
         cell_NV[i,]= (p/np - (np+1)/2)/nn
     }
-
-    cell_NV <- (cell_NV+t(cell_NV))/2
     return(cell_NV)
 }
 
