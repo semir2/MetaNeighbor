@@ -26,7 +26,7 @@ compute_votes_without_network <- function(candidates, voters, voter_id = NULL) {
     voter_id <- design_matrix(colnames(voters))
   }
   raw_votes <- crossprod(candidates, voters %*% voter_id)
-  return(sweep(raw_votes, 2, colSums(voter_identity), FUN = "+")) /
+  return(sweep(raw_votes, 2, colSums(voter_id), FUN = "+")) /
          (c(crossprod(candidates, rowSums(voters))) + rep(ncol(voters), ncol(candidates)))
 }
 
@@ -80,7 +80,7 @@ compute_votes_from_network <- function(network, voter_id = NULL) {
 #' candidate_id is a binary matrix indicating the cell type of candidates
 #' If left empty, cell types are assumed to be the row names of the vote matrix.
 compute_aurocs <- function(votes, candidate_id = NULL) {
-  if is.null(candidate_id) {
+  if (is.null(candidate_id)) {
     positives <- design_matrix(rownames(votes))
   } else {
     positives <- candidate_id
