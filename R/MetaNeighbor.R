@@ -120,7 +120,7 @@ score_default <- function(dat_sub, experiment_labels, celltype_labels) {
 #' Compute ROCs using the approximate low memory version
 score_low_mem <- function(dat_sub, study_id, celltype_labels, skip_network = TRUE) {
   # remove cells that have zero expressed genes
-  nonzero_cells <- colSums(dat_sub) > 0
+  nonzero_cells <- Matrix::colSums(dat_sub) > 0
   dat_sub <- dat_sub[, nonzero_cells]
   study_id <- study_id[nonzero_cells]
   celltype_labels <- celltype_labels[nonzero_cells,]
