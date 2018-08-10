@@ -609,7 +609,7 @@ AUROC_scores = MetaNeighbor(dat = small_pancreas,
                             fast_version = TRUE)
 ```
 <p align="center">
-<img src="./vignettes/figures/MNUS_pancreas_2.png"><br>
+<img src="./vignettes/figures/MN_neurons.png"><br>
 <b>Figure 8. Low memory version: AUROC score distributions for each cell type (5 pancreas datasets)</b>
 </p>
 
