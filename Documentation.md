@@ -404,6 +404,207 @@ top_hits
 These top hits can then be used for supervised analysis, making putative cell
 type labels for each unique grouping (see Part 1).
 
+
+## Part 3: low-memory version of MetaNeighbor for large datasets
+
+MetaNeighbor's voting algorithm relies on a cell-cell correlation network. This procedure becomes very memory-intensive and time consuming when it is applied to datasets that contain a large number of samples. We propose an approximative version of MetaNeighbor that does not explicitly compute the cell-cell correlation network, resulting in significant improvements in memory usage and run times.
+
+The low-memory/fast version is used by passing the flag `fast_version = TRUE` to either MetaNeighbor or MetaNeighborUS. Other parameters are unchanged: switching from the exact to the fast version is very simple. If your dataset is particularly large, we encourage you to use SingleCellExperiment objects, a subclass of SummarizedExperiment that is able to store data in sparse representations. We also strongly encourage you to use R with OpenBLAS or MKL (see installation tutorial [here](https://www.datacamp.com/community/tutorials/installing-R-windows-mac-ubuntu)). The low memory version relies almost exclusively on matrix operations, OpenBLAS/MKL will considerably speed it up and automatically use all cores on your machine.
+
+### Run previous example with low-memory version
+
+We start by running the examples from the previous sections using the `fast_version = TRUE` flag. Load MetaNeighbor and
+the tutorial data:
+
+``` {r eval = TRUE, message=FALSE}
+library(MetaNeighbor)
+library(SummarizedExperiment)
+data(mn_data)
+data(GOmouse)
+```
+
+Rerun MetaNeighbor using the same command as above, with `fast_version = TRUE`:
+```{r eval = TRUE,fig.width=4,fig.height=3, results='hide'}
+AUROC_scores = MetaNeighbor(dat = mn_data,
+                            experiment_labels = as.numeric(factor(mn_data$study_id)),
+                            celltype_labels = metadata(colData(mn_data))[["cell_labels"]],
+                            genesets = GOmouse,
+                            bplot = TRUE,
+                            fast_version = TRUE)
+```
+<p align="center">
+<img src="./vignettes/figures/MN_neurons.png"><br>
+<b>Figure 4. Low memory version: AUROC score distributions for each cell type</b>
+</p>
+
+Rerun unsupervised MetaNeighbor, with `fast_version = TRUE`:
+```{r eval = TRUE, fig.width = 7, fig.height = 6.5}
+var_genes = variableGenes(dat = mn_data, exp_labels = mn_data$study_id)
+celltype_NV = MetaNeighborUS(var_genes = var_genes,
+                             dat = mn_data,
+                             study_id = mn_data$study_id,
+                             cell_type = mn_data$cell_type,
+                             fast_version = TRUE)
+cols = rev(colorRampPalette(RColorBrewer::brewer.pal(11,"RdYlBu"))(100))
+breaks = seq(0, 1, length=101)
+gplots::heatmap.2(celltype_NV,
+                  margins=c(8,8),
+                  keysize=1,
+                  key.xlab="AUROC",
+                  key.title="NULL",
+                  trace = "none",
+                  density.info = "none",
+                  col = cols,
+                  breaks = breaks,
+                  offsetRow=0.1,
+                  offsetCol=0.1,
+                  cexRow = 0.7,
+                  cexCol = 0.7)
+```
+<p align="center">
+<img src="./vignettes/figures/MNUS_neurons.png"><br>
+<b>Figure 5. Low memory version: Heatmap of cell type vs cell type mean AUROC scores</b>
+</p>
+
+Because of the approximations in the low memory version, the AUROCs do not match exactly, but results from the low memory version are in good qualitative agreement with the exact procedure.
+
+
+### Apply unsupervised low-memory version to large datasets
+
+The low memory version is particularly useful when the number of samples across datasets exceeds 10,000. In this section, we show a simple example with 5 datasets from the human pancreas.
+For simplicity, we use parsed datasets from the Hemberg lab (datasets available [here](https://hemberg-lab.github.io/scRNA.seq.datasets/human/pancreas/) in RDS format).
+Every dataset is represented as a SingleCellExperiment object, a subclass of SummarizedExperiment, particularly useful for storing large datasets, as it is able to handle sparse matrices or HDF5 matrices.
+
+#### Example with 2 datasets: prepare the data
+
+Before we apply MetaNeighbor, we need to fuse the datasets as a unique SingleCellExperiment object.
+Start by downloading the Baron and Segerstolpe datasets, then run R and load the following libraries and data:
+
+```{r eval = TRUE, message = FALSE}
+library(SingleCellExperiment)
+library(Matrix)
+baron <- readRDS('baron-human.rds')
+segerstolpe <- readRDS('segerstolpe.rds')
+```
+
+In this analysis, we remove dead cells and doublets from the Segerstolpe dataset, and retain the genes that are common to the two datasets:
+```{r eval = TRUE}
+common_genes <- intersect(rownames(baron), rownames(segerstolpe))
+baron <- baron[common_genes,]
+segerstolpe <- segerstolpe[common_genes, !(segerstolpe$cell_type1 %in% c('not applicable', 'co-expression'))]
+```
+
+We create a SingleCellExperiment that is a fusion of the two datasets, then remove the single datasets:
+```{r eval = TRUE}
+new_colData = data.frame(
+  study_id = rep(c('baron', 'segerstolpe'), c(ncol(baron), ncol(segerstolpe))),
+  cell_type = c(as.character(colData(baron)$cell_type1), colData(segerstolpe)$cell_type1)
+)
+pancreas <- SingleCellExperiment(
+  Matrix(cbind(assay(baron, 1), assay(segerstolpe, 1)), sparse = TRUE),
+  colData = new_colData
+)
+dim(pancreas)
+rm(baron); rm(segerstolpe)
+```
+
+    ## [1] 18936 10739
+  
+
+The fused dataset has 10,739 samples across 18,936 genes.
+
+#### Example with 2 datasets: apply unsupervised MetaNeighbor to match cell type labels
+
+Now that the dataset is ready, we can find variable genes and run the unsupervised version of MetaNeighbor:
+```{r eval = TRUE, fig.width=7,fig.height=6.5}
+var_genes = variableGenes(dat = pancreas, exp_labels = pancreas$study_id)
+celltype_NV = MetaNeighborUS(var_genes = var_genes,
+                             dat = pancreas,
+                             study_id = pancreas$study_id,
+                             cell_type = pancreas$cell_type,
+                             fast_version = TRUE)
+gplots::heatmap.2(celltype_NV,
+                  margins=c(8,8),
+                  keysize=1,
+                  key.xlab="AUROC",
+                  key.title="NULL",
+                  trace = "none",
+                  density.info = "none",
+                  col = cols,
+                  breaks = breaks,
+                  offsetRow=0.1,
+                  offsetCol=0.1,
+                  cexRow = 0.7,
+                  cexCol = 0.7)
+```
+<p align="center">
+<img src="./vignettes/figures/MNUS_pancreas_2.png"><br>
+<b>Figure 6. Low memory version: Heatmap of cell type vs cell type mean AUROC scores (2 pancreas datasets)</b>
+</p>
+
+### Apply MetaNeighbor to a collection of 5 datasets
+
+Using a procedure similar to the above example, we generated a SingleCellExperiment with all 5 pancreas datasets. We encourage you to fuse the datasets on your own, then load the resulting SingleCellExperiment object:
+
+```{r eval = TRUE}
+all_pancreas <- readRDS('all_pancreas.rds')
+dim(all_pancreas)
+```
+
+    ## [1] 15558 15138
+  
+
+Our fused datasets has 15,138 cells across 15,558 genes.
+
+#### Unsupervised MetaNeighbor
+
+Select variable genes, then run unsupervised MetaNeighbor to match labels across studies:
+```{r eval = TRUE, eval=TRUE,fig.width=7,fig.height=6.5}
+var_genes = variableGenes(dat = all_pancreas, exp_labels = all_pancreas$Study_ID)
+celltype_NV = MetaNeighborUS(var_genes = var_genes,
+                             dat = all_pancreas,
+                             study_id = all_pancreas$Study_ID,
+                             cell_type = all_pancreas$Celltype,
+                             fast_version = TRUE)
+gplots::heatmap.2(celltype_NV,
+                  margins=c(8,8),
+                  keysize=1,
+                  key.xlab="AUROC",
+                  key.title="NULL",
+                  trace = "none",
+                  density.info = "none",
+                  col = cols,
+                  breaks = breaks,
+                  offsetRow=0.1,
+                  offsetCol=0.1,
+                  cexRow = 0.7,
+                  cexCol = 0.7)
+```
+<p align="center">
+<img src="./vignettes/figures/MNUS_pancreas_5.png"><br>
+<b>Figure 7. Low memory version: Heatmap of cell type vs cell type mean AUROC scores (5 pancreas datasets)</b>
+</p>
+
+#### MetaNeighbor
+
+Run MetaNeighbor for labels that span all datasets with 71 gene sets (GO slim terms containing 50 to 1,000 genes):
+```{r eval = TRUE,fig.width=4,fig.height=3, results='hide'}
+data(GOhuman)
+small_pancreas = all_pancreas[, all_pancreas$Celltype %in% c('alpha', 'beta', 'delta')]
+celltype_matrix = model.matrix(~small_pancreas$Celltype - 1)
+colnames(celltype_matrix) = levels(as.factor(small_pancreas$Celltype))
+AUROC_scores = MetaNeighbor(dat = small_pancreas,
+                            experiment_labels = as.numeric(factor(small_pancreas$Study_ID)),
+                            celltype_labels = celltype_matrix,
+                            genesets = GOhuman,
+                            bplot = TRUE,
+                            fast_version = TRUE)
+```
+<p align="center">
+<img src="./vignettes/figures/MNUS_pancreas_2.png"><br>
+<b>Figure 8. Low memory version: AUROC score distributions for each cell type (5 pancreas datasets)</b>
+</p>
+
 # FAQ and Contact Information
 * If you use this package, please cite [Crow et al (2018) Nature Communications](https://www.nature.com/articles/s41467-018-03282-0).
 * Data files used in Crow et al (2018) may be accessed [here](https://www.dropbox.com/sh/9std53hcyafke2c/AAAuwjcOvKSrlZABRJVqVF_pa?dl=0).
