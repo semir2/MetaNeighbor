@@ -399,7 +399,7 @@ gplots::heatmap.2(celltype_NV,
 Because of the approximations in the low memory version, the AUROCs do not match exactly, but results from the low memory version are in good qualitative agreement with the exact procedure.
 
 
-### Apply unsupervised low-memory version to large datasets
+### Apply low-memory version to large datasets
 
 The low memory version is particularly useful when the number of samples across datasets exceeds 10,000. In this section, we show a simple example with 5 datasets from the human pancreas.
 For simplicity, we use parsed datasets from the Hemberg lab (datasets available [here](https://hemberg-lab.github.io/scRNA.seq.datasets/human/pancreas/) in RDS format).
@@ -440,7 +440,7 @@ rm(baron); rm(segerstolpe)
 
 The fused dataset has 10,739 samples across 18,936 genes.
 
-#### Example with 2 datasets: apply unsupervised MetaNeighbor to match cell type labels
+#### Example with 2 datasets: match labels
 
 Now that the dataset is ready, we can find variable genes and run the unsupervised version of MetaNeighbor:
 ```{r eval = TRUE, fig.width=7,fig.height=6.5}
@@ -476,7 +476,7 @@ dim(all_pancreas)
 ```
 Our fused datasets has 15,138 cells across 15,558 genes.
 
-#### Unsupervised MetaNeighbor
+#### Match labels
 
 Select variable genes, then run unsupervised MetaNeighbor to match labels across studies:
 ```{r eval = TRUE, eval=TRUE,fig.width=7,fig.height=6.5}
@@ -501,7 +501,7 @@ gplots::heatmap.2(celltype_NV,
                   cexCol = 0.7)
 ```
 
-#### MetaNeighbor
+#### Run MetaNeighbor on common labels
 
 Run MetaNeighbor for labels that span all datasets with 71 gene sets (GO slim terms containing 50 to 1,000 genes):
 ```{r eval = TRUE,fig.width=4,fig.height=3, results='hide'}
