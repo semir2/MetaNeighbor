@@ -61,21 +61,14 @@ pseudo_rank <- function(x, breaks = 1000, depth = 1000) {
   M <- max(x)
   bins <- floor((x-m) / ((1+1e-10)*(M-m)) * breaks) + 1
   if (is.null(depth)) {
-    num_per_bin <- count_occurrences(bins, breaks)
+    num_per_bin <- matrixStats::tabulate(bins, bx = breaks)
     rank_per_bin <- count_to_rank(num_per_bin, length(x))
   } else {
-    num_per_bin <- count_occurrences(bins[sample.int(length(x), breaks*depth)], breaks)
+    num_per_bin <- matrixStats::tabulate(bins[sample.int(length(x), breaks*depth)], bx = breaks)
     rank_per_bin <- count_to_rank(num_per_bin, breaks*depth)
   }
   return(rank_per_bin[bins])
 }
-
-#' Count occurrences of integers ranging from 1 to max_value (C++)
-Rcpp::cppFunction('NumericVector count_occurrences(NumericVector x, int max_value) {
-  NumericVector result(max_value);
-  for (int i = 0; i < x.length(); i++) { result[x(i)-1]++; }
-  return result;
-}')
 
 #' Convert count statistics to rank (C++)
 Rcpp::cppFunction('NumericVector count_to_rank(NumericVector x, int total_count) {
