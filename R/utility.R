@@ -60,22 +60,38 @@ pseudo_rank <- function(x, breaks = 1000, depth = 1000) {
   m <- min(x)
   M <- max(x)
   bins <- floor((x-m) / ((1+1e-10)*(M-m)) * breaks) + 1
-  num_per_bin <- rep(0, breaks)
   if (is.null(depth)) {
-    for (row in seq_len(nrow(bins))) {
-      for (val in bins[row,]) { num_per_bin[val] <- num_per_bin[val] + 1 }
-    }
+    num_per_bin <- count_occurrences(bins, breaks)
+    rank_per_bin <- count_to_rank(num_per_bin, length(x))
   } else {
-    indices <- sample.int(length(bins), breaks*depth)
-    for (i in indices) {
-      val <- bins[i]
-      num_per_bin[val] <- num_per_bin[val] + 1
-    }
+    num_per_bin <- count_occurrences(bins[sample.int(length(x), breaks*depth)], breaks)
+    rank_per_bin <- count_to_rank(num_per_bin, breaks*depth)
   }
-  rank_per_bin <- (c(0, cumsum(num_per_bin)[-length(num_per_bin)]) +
-                   (num_per_bin+1)/2) / sum(num_per_bin)
   return(rank_per_bin[bins])
 }
+
+#' Count occurrences of integers ranging from 1 to max_value (C++)
+Rcpp::cppFunction('NumericVector count_occurrences(NumericVector x, int max_value) {
+  NumericVector result(max_value);
+  for (int i = 0; i < x.length(); i++) { result[x(i)-1]++; }
+  return result;
+}')
+
+#' Convert count statistics to rank (C++)
+Rcpp::cppFunction('NumericVector count_to_rank(NumericVector x, int total_count) {
+  NumericVector result(x.length());
+  int cumulated_total = 0;
+  for (int i = 0; i < x.length(); i++) {
+    result[i] = (cumulated_total + (x(i)+1)*0.5) / total_count;
+    cumulated_total += x[i];
+  }
+  return result;
+}')
+
+#' Convert bin number to rank (C++, in place operation)
+Rcpp::cppFunction('void bin_to_rank(NumericVector bins, NumericVector rank_per_bin) {
+  for (int i = 0; i < bins.length(); i++) { bins[i] = rank_per_bin[bins[i]-1]; }
+}')
 
 #' Compute neighbor voting from cell x cell correlation network
 #'
