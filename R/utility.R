@@ -4,7 +4,7 @@
 #' Scale matrix such that all colums sum to 0 and have l2-norm of 1
 normalize_cols <- function(M, ranked = TRUE) {
   if (ranked) {
-    M <- apply(M, 2, rank)
+    M <- matrixStats::colRanks(M, ties.method = "average", preserveShape = TRUE)
   }
   return(normalize_cols_cpp(as.matrix(M)))
 }
