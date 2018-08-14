@@ -4,13 +4,26 @@
 #' Scale matrix such that all colums sum to 0 and have l2-norm of 1
 normalize_cols <- function(M, ranked = TRUE) {
   if (ranked) {
-    M <- apply(M, 2, rank) - (nrow(M)+1)/2
-  } else {
-    M <- scale(M, scale=FALSE)
+    M <- apply(M, 2, rank)
   }
-  M <- scale(M, center=FALSE, apply(M, 2, function(c) sqrt(sum(c**2))))
-  return(M)
+  return(normalize_cols_cpp(as.matrix(M)))
 }
+
+#' Scale matrix such that all colums sum to 0 and have l2-norm of 1 (C++)
+Rcpp::cppFunction('NumericMatrix normalize_cols_cpp(NumericMatrix M) {
+  NumericMatrix result(M.nrow(), M.ncol());
+  for (int j = 0; j < M.ncol(); j++) {
+    double mean = 0;
+    for (int i = 0; i < M.nrow(); i++) { mean += M(i,j); }
+    mean /= M.nrow();
+    for (int i = 0; i < M.nrow(); i++) { result(i,j) = M(i,j) - mean; }
+    double norm = 0;
+    for (int i = 0; i < M.nrow(); i++) { norm += result(i,j) * result(i,j); }
+    norm = 1 / sqrt(norm);
+    for (int i = 0; i < M.nrow(); i++) { result(i,j) *= norm; }
+  }
+  return result;
+}')
 
 #' Return binary matrix with position of elements of list_names within full_list
 find_subsets <- function(full_list, list_names) {
