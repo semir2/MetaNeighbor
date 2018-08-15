@@ -46,10 +46,10 @@ pseudo_rank <- function(x, breaks = 1000, depth = 1000) {
   M <- max(x)
   bins <- floor((x-m) / ((1+1e-10)*(M-m)) * breaks) + 1
   if (is.null(depth)) {
-    num_per_bin <- matrixStats::tabulate(bins, bx = breaks)
+    num_per_bin <- tabulate(bins, nbins = breaks)
     rank_per_bin <- count_to_rank(num_per_bin, length(x))
   } else {
-    num_per_bin <- matrixStats::tabulate(bins[sample.int(length(x), breaks*depth)], bx = breaks)
+    num_per_bin <- tabulate(bins[sample.int(length(x), breaks*depth)], nbins = breaks)
     rank_per_bin <- count_to_rank(num_per_bin, breaks*depth)
   }
   return(rank_per_bin[bins])
