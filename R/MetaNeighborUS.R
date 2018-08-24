@@ -59,6 +59,9 @@ MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type, fast_vers
     }
     dat <- dat[!is.na(matching_vargenes),]
 
+    study_id <- as.character(study_id)
+    cell_type <- as.character(cell_type)
+
     if (fast_version) {
       cell_NV <- MetaNeighborUSLowMem(dat, study_id, cell_type)
     } else {
@@ -70,6 +73,7 @@ MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type, fast_vers
 }
 
 MetaNeighborUSDefault <- function(dat, study_id, cell_type) {
+    dat <- as.matrix(dat)
     pheno <- as.data.frame(cbind(study_id,cell_type), stringsAsFactors = FALSE)
     pheno$StudyID_CT <- paste(pheno$study_id, pheno$cell_type, sep = "|")
     celltypes   <- unique(pheno$StudyID_CT)
