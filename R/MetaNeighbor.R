@@ -123,7 +123,7 @@ score_low_mem <- function(dat_sub, study_id, celltype_labels, skip_network = TRU
   nonzero_cells <- Matrix::colSums(dat_sub) > 0
   dat_sub <- dat_sub[, nonzero_cells]
   study_id <- study_id[nonzero_cells]
-  celltype_labels <- celltype_labels[nonzero_cells,]
+  celltype_labels <- as.matrix(celltype_labels[nonzero_cells,])
 
   dat_sub <- normalize_cols(dat_sub)
 
