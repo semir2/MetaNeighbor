@@ -1,6 +1,6 @@
 MetaNeighbor: a method to rapidly assess cell type identity using both functional and random gene sets
 ================
-Megan Crow, Sara Ballouz, Manthan Shah, Jesse Gillis
+Megan Crow, Stephan Fischer, Sara Ballouz, Manthan Shah, Jesse Gillis
 
 
 -   [Introduction](#introduction)
@@ -98,22 +98,30 @@ of the expression matrix.
 Because there is a ranking step, the code is not ideal for scaling in the R
 environment as is. The major factor is the total number of samples. Speed-ups
 are possible with parallelization and installing libraries such as MRAN
-(<https://mran.revolutionanalytics.com/>).
+(<https://mran.revolutionanalytics.com/>).  We also propose an approximate
+version of MetaNeighbor that skips the ranking step, effectively improving
+scalability by using less memory and running faster.
 
-Laptop (OSX 10.10.4, 1.6 GHz, 8GB RAM, R 3.3.2, Rstudio 0.99.446)
+Laptop (OSX 10.10.4, 1.6 GHz, 8GB RAM, R 3.3.2, Rstudio 0.99.446) for the default version.
+Desktop (Ubuntu 18.04.1 in an Oracle VM, 4 x 3.6 GHz, 10.9GB RAM, R 3.4.4) for the low-memory version.
 
-|  Experiments|  Cell types|  Samples|  Gene sets|  Time (s)|
-|------------:|-----------:|--------:|----------:|---------:|
-|            2|           1|      100|         10|       0.1|
-|            2|          10|      100|         10|       0.5|
-|            2|          10|      100|        100|       1.7|
-|            2|          10|      100|       1000|      17.5|
-|            2|           1|     1000|         10|         9|
-|           10|           1|     1000|         10|         9|
-|            2|          10|     1000|         10|        12|
-|            2|          10|     1000|        100|        93|
-|            2|          10|     1000|       1000|       979|
-|            2|          10|    10000|         10|      3653|
+|  Experiments|  Cell types|  Samples|  Gene sets|  Time (s)|    Time(s)|
+|             |            |         |           |   Default| Low-memory|
+|------------:|-----------:|--------:|----------:|---------:|----------:|
+|            2|           1|      100|         10|       0.1|          .|
+|            2|          10|      100|         10|       0.5|        0.1|
+|            2|          10|      100|        100|       1.7|        0.6|
+|            2|          10|      100|       1000|      17.5|        6.2|
+|            2|           1|     1000|         10|         9|          .|
+|           10|           1|     1000|         10|         9|          .|
+|            2|          10|     1000|         10|        12|        0.7|
+|            2|          10|     1000|        100|        93|        6.4|
+|            2|          10|     1000|       1000|       979|         63|
+|            2|          10|    10000|         10|      3653|         10|
+|            2|          10|    10000|        100|         .|         91|
+|            2|          10|    10000|       1000|         .|        910|
+
+(a . indicates that we did not measure this combination of parameters)
 
 # Installation
 
@@ -415,9 +423,9 @@ type labels for each unique grouping (see Part 1).
 
 ## Part 3: low-memory version of MetaNeighbor for large datasets
 
-MetaNeighbor's voting algorithm relies on a cell-cell correlation network. This procedure becomes very memory-intensive and time consuming when it is applied to datasets that contain a large number of samples. We propose an approximative version of MetaNeighbor that does not explicitly compute the cell-cell correlation network, resulting in significant improvements in memory usage and run times.
+MetaNeighbor's voting algorithm relies on a cell-cell correlation network. This procedure becomes very memory-intensive and time consuming when it is applied to datasets that contain a large number of samples (>10K). We propose an approximative version of MetaNeighbor that does not explicitly compute the cell-cell correlation network, resulting in significant improvements in memory usage and run times.
 
-The low-memory/fast version is used by passing the flag `fast_version = TRUE` to either MetaNeighbor or MetaNeighborUS. Other parameters are unchanged: switching from the exact to the fast version is very simple. If your dataset is particularly large, we encourage you to use SingleCellExperiment objects, a subclass of SummarizedExperiment that is able to store data in sparse representations. We also strongly encourage you to use R with OpenBLAS or MKL (see installation tutorial [here](https://www.datacamp.com/community/tutorials/installing-R-windows-mac-ubuntu)). The low memory version relies almost exclusively on matrix operations, OpenBLAS/MKL will considerably speed it up and automatically use all cores on your machine.
+The low-memory (fast) version is used by passing the flag `fast_version = TRUE` to either MetaNeighbor or MetaNeighborUS. Other parameters are unchanged: switching from the exact to the fast version is very simple. If your dataset is particularly large, we encourage you to use SingleCellExperiment objects, a subclass of SummarizedExperiment that is able to store data in sparse representations. We also strongly encourage you to use R with OpenBLAS or MKL (see installation tutorial [here](https://www.datacamp.com/community/tutorials/installing-R-windows-mac-ubuntu)). The low-memory version relies almost exclusively on matrix operations, OpenBLAS/MKL will considerably speed it up and automatically use all cores on your machine.
 
 ### Run previous example with low-memory version
 
@@ -431,7 +439,7 @@ data(mn_data)
 data(GOmouse)
 ```
 
-Rerun MetaNeighbor using the same command as above, with `fast_version = TRUE`:
+Re-run MetaNeighbor using the same command as above, with `fast_version = TRUE`:
 ```{r eval = TRUE,fig.width=4,fig.height=3, results='hide'}
 AUROC_scores = MetaNeighbor(dat = mn_data,
                             experiment_labels = as.numeric(factor(mn_data$study_id)),
@@ -442,10 +450,10 @@ AUROC_scores = MetaNeighbor(dat = mn_data,
 ```
 <p align="center">
 <img src="./vignettes/figures/MN_neurons.png"><br>
-<b>Figure 4. Low memory version: AUROC score distributions for each cell type</b>
+<b>Figure 4. Low-memory version: AUROC score distributions for each cell type</b>
 </p>
 
-Rerun unsupervised MetaNeighbor, with `fast_version = TRUE`:
+Re-run unsupervised MetaNeighbor, with `fast_version = TRUE`:
 ```{r eval = TRUE, fig.width = 7, fig.height = 6.5}
 var_genes = variableGenes(dat = mn_data, exp_labels = mn_data$study_id)
 celltype_NV = MetaNeighborUS(var_genes = var_genes,
@@ -471,15 +479,15 @@ gplots::heatmap.2(celltype_NV,
 ```
 <p align="center">
 <img src="./vignettes/figures/MNUS_neurons.png"><br>
-<b>Figure 5. Low memory version: Heatmap of cell type vs cell type mean AUROC scores</b>
+<b>Figure 5. Low-memory version: Heatmap of cell type vs cell type mean AUROC scores</b>
 </p>
 
-Because of the approximations in the low memory version, the AUROCs do not match exactly, but results from the low memory version are in good qualitative agreement with the exact procedure.
+Because of the approximations in the low-memory version, the AUROCs do not match exactly, but results from the low-memory version are in good qualitative agreement with the exact procedure.
 
 
 ### Apply low-memory version to large datasets
 
-The low memory version is particularly useful when the number of samples across datasets exceeds 10,000. In this section, we show a simple example with 5 datasets from the human pancreas.
+The low-memory version is particularly useful when the number of samples across datasets exceeds 10,000. In this section, we show a simple example with 5 datasets from the human pancreas.
 For simplicity, we use parsed datasets from the Hemberg lab (datasets available [here](https://hemberg-lab.github.io/scRNA.seq.datasets/human/pancreas/) in RDS format).
 Every dataset is represented as a SingleCellExperiment object, a subclass of SummarizedExperiment, particularly useful for storing large datasets, as it is able to handle sparse matrices or HDF5 matrices.
 
@@ -547,7 +555,7 @@ gplots::heatmap.2(celltype_NV,
 ```
 <p align="center">
 <img src="./vignettes/figures/MNUS_pancreas_2.png"><br>
-<b>Figure 6. Low memory version: Heatmap of cell type vs cell type mean AUROC scores (2 pancreas datasets)</b>
+<b>Figure 6. Low-memory version: Heatmap of cell type vs cell type mean AUROC scores (2 pancreas datasets)</b>
 </p>
 
 ### Apply MetaNeighbor to a collection of 5 datasets
@@ -590,7 +598,7 @@ gplots::heatmap.2(celltype_NV,
 ```
 <p align="center">
 <img src="./vignettes/figures/MNUS_pancreas_5.png"><br>
-<b>Figure 7. Low memory version: Heatmap of cell type vs cell type mean AUROC scores (5 pancreas datasets)</b>
+<b>Figure 7. Low-memory version: Heatmap of cell type vs cell type mean AUROC scores (5 pancreas datasets)</b>
 </p>
 
 #### Run MetaNeighbor on common labels
@@ -610,7 +618,7 @@ AUROC_scores = MetaNeighbor(dat = small_pancreas,
 ```
 <p align="center">
 <img src="./vignettes/figures/MN_neurons.png"><br>
-<b>Figure 8. Low memory version: AUROC score distributions for each cell type (5 pancreas datasets)</b>
+<b>Figure 8. Low-memory version: AUROC score distributions for each cell type (5 pancreas datasets)</b>
 </p>
 
 # FAQ and Contact Information
