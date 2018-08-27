@@ -538,6 +538,8 @@ celltype_NV = MetaNeighborUS(var_genes = var_genes,
                              study_id = pancreas$study_id,
                              cell_type = pancreas$cell_type,
                              fast_version = TRUE)
+cols = rev(colorRampPalette(RColorBrewer::brewer.pal(11,"RdYlBu"))(100))
+breaks = seq(0, 1, length=101)
 gplots::heatmap.2(celltype_NV,
                   margins=c(8,8),
                   keysize=1,
@@ -581,6 +583,8 @@ celltype_NV = MetaNeighborUS(var_genes = var_genes,
                              study_id = all_pancreas$Study_ID,
                              cell_type = all_pancreas$Celltype,
                              fast_version = TRUE)
+cols = rev(colorRampPalette(RColorBrewer::brewer.pal(11,"RdYlBu"))(100))
+breaks = seq(0, 1, length=101)
 gplots::heatmap.2(celltype_NV,
                   margins=c(8,8),
                   keysize=1,
