@@ -22,6 +22,8 @@ find_subsets <- function(full_list, list_names) {
 compute_votes_without_network <- function(candidates, voters, voter_id = NULL) {
   if (is.null(voter_id)) {
     voter_id <- design_matrix(colnames(voters))
+  } else {
+    voter_id <- as.matrix(voter_id)
   }
   raw_votes <- crossprod(candidates, voters %*% voter_id)
   return(sweep(raw_votes, 2, colSums(voter_id), FUN = "+")) /
@@ -75,7 +77,7 @@ compute_aurocs <- function(votes, candidate_id = NULL) {
   if (is.null(candidate_id)) {
     positives <- design_matrix(rownames(votes))
   } else {
-    positives <- candidate_id
+    positives <- as.matrix(candidate_id)
   }
   n_positives <- colSums(positives)
   n_negatives <- nrow(positives) - n_positives
