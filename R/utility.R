@@ -88,13 +88,13 @@ compute_aurocs <- function(votes, candidate_id = NULL) {
 
 #' Transform a vector with cell_type labels into a binary matrix
 design_matrix <- function(cell_type) {
-  factors <- levels(as.factor(cell_type))
-  if (length(factors) > 1) {
+  cell_type <- as.factor(cell_type)
+  if (length(levels(cell_type)) > 1) {
     result <- model.matrix(~cell_type-1)
   } else {
     result <- matrix(1, nrow = length(cell_type), ncol = 1)
   }
-  colnames(result) <- factors
+  colnames(result) <- levels(cell_type)
   return(result)
 }
 
