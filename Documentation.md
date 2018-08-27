@@ -105,8 +105,7 @@ scalability by using less memory and running faster.
 Laptop (OSX 10.10.4, 1.6 GHz, 8GB RAM, R 3.3.2, Rstudio 0.99.446) for the default version.
 Desktop (Ubuntu 18.04.1 in an Oracle VM, 4 x 3.6 GHz, 10.9GB RAM, R 3.4.4) for the low-memory version.
 
-|  Experiments|  Cell types|  Samples|  Gene sets|  Time (s)|    Time(s)|
-|             |            |         |           |   Default| Low-memory|
+|  Experiments|  Cell types|  Samples|  Gene sets|  Time (s)<br>Default|    Time (s)<br>Low-memory|
 |------------:|-----------:|--------:|----------:|---------:|----------:|
 |            2|           1|      100|         10|       0.1|          .|
 |            2|          10|      100|         10|       0.5|        0.1|
