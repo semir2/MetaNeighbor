@@ -22,6 +22,8 @@ find_subsets <- function(full_list, list_names) {
 compute_votes_without_network <- function(candidates, voters, voter_id = NULL) {
   if (is.null(voter_id)) {
     voter_id <- design_matrix(colnames(voters))
+  } else {
+    voter_id <- as.matrix(voter_id)
   }
   raw_votes <- crossprod(candidates, voters %*% voter_id)
   return(sweep(raw_votes, 2, colSums(voter_id), FUN = "+")) /
@@ -46,13 +48,14 @@ pseudo_rank <- function(x, breaks = 1000, depth = 1000) {
   M <- max(x)
   bins <- floor((x-m) / ((1+1e-10)*(M-m)) * breaks) + 1
   if (is.null(depth)) {
-    num_per_bin <- matrixStats::tabulate(bins, bx = breaks)
+    num_per_bin <- tabulate(bins, nbins = breaks)
     rank_per_bin <- count_to_rank(num_per_bin, length(x))
   } else {
-    num_per_bin <- matrixStats::tabulate(bins[sample.int(length(x), breaks*depth)], bx = breaks)
+    num_per_bin <- tabulate(bins[sample.int(length(x), breaks*depth)], nbins = breaks)
     rank_per_bin <- count_to_rank(num_per_bin, breaks*depth)
   }
-  return(rank_per_bin[bins])
+  bin_to_rank(bins, rank_per_bin)
+  return(bins)
 }
 
 #' Compute neighbor voting from cell x cell correlation network
@@ -74,7 +77,7 @@ compute_aurocs <- function(votes, candidate_id = NULL) {
   if (is.null(candidate_id)) {
     positives <- design_matrix(rownames(votes))
   } else {
-    positives <- candidate_id
+    positives <- as.matrix(candidate_id)
   }
   n_positives <- colSums(positives)
   n_negatives <- nrow(positives) - n_positives
@@ -85,13 +88,13 @@ compute_aurocs <- function(votes, candidate_id = NULL) {
 
 #' Transform a vector with cell_type labels into a binary matrix
 design_matrix <- function(cell_type) {
-  factors <- levels(as.factor(cell_type))
-  if (length(factors) > 1) {
+  cell_type <- as.factor(cell_type)
+  if (length(levels(cell_type)) > 1) {
     result <- model.matrix(~cell_type-1)
   } else {
     result <- matrix(1, nrow = length(cell_type), ncol = 1)
   }
-  colnames(result) <- factors
+  colnames(result) <- levels(cell_type)
   return(result)
 }
 

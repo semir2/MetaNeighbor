@@ -85,22 +85,30 @@ of the expression matrix.
 Because there is a ranking step, the code is not ideal for scaling in the R
 environment as is. The major factor is the total number of samples. Speed-ups
 are possible with parallelization and installing libraries such as MRAN
-(<https://mran.revolutionanalytics.com/>).
+(<https://mran.revolutionanalytics.com/>). We also propose an approximate
+version of MetaNeighbor that skips the ranking step, effectively improving
+scalability by using less memory and running faster.
 
-Laptop (OSX 10.10.4, 1.6 GHz, 8GB RAM, R 3.3.2, Rstudio 0.99.446)
+Laptop (OSX 10.10.4, 1.6 GHz, 8GB RAM, R 3.3.2, Rstudio 0.99.446) for the default version.
 
-|  Experiments|  Cell types|  Samples|  Gene sets|  Time (s)|
-|------------:|-----------:|--------:|----------:|---------:|
-|            2|           1|      100|         10|       0.1|
-|            2|          10|      100|         10|       0.5|
-|            2|          10|      100|        100|       1.7|
-|            2|          10|      100|       1000|      17.5|
-|            2|           1|     1000|         10|         9|
-|           10|           1|     1000|         10|         9|
-|            2|          10|     1000|         10|        12|
-|            2|          10|     1000|        100|        93|
-|            2|          10|     1000|       1000|       979|
-|            2|          10|    10000|         10|      3653|
+Desktop (Ubuntu 18.04.1 in an Oracle VM, 4 x 3.6 GHz, 10.9GB RAM, R 3.4.4) for the low-memory version.
+
+|  Experiments|  Cell types|  Samples|  Gene sets| Default: Time (s)| Low-memory: Time (s)|
+|------------:|-----------:|--------:|----------:|---------:|----------:|
+|            2|           1|      100|         10|       0.1|          .|
+|            2|          10|      100|         10|       0.5|        0.1|
+|            2|          10|      100|        100|       1.7|        0.6|
+|            2|          10|      100|       1000|      17.5|        6.2|
+|            2|           1|     1000|         10|         9|          .|
+|           10|           1|     1000|         10|         9|          .|
+|            2|          10|     1000|         10|        12|        0.7|
+|            2|          10|     1000|        100|        93|        6.4|
+|            2|          10|     1000|       1000|       979|         63|
+|            2|          10|    10000|         10|      3653|         10|
+|            2|          10|    10000|        100|         .|         91|
+|            2|          10|    10000|       1000|         .|        910|
+
+(a . indicates that we did not measure this combination of parameters)
 
 # Installation
 Install the MetaNeighbor package by running the following command:
@@ -347,7 +355,7 @@ type labels for each unique grouping (see Part 1).
 
 MetaNeighbor's voting algorithm relies on a cell-cell correlation network. This procedure becomes very memory-intensive and time consuming when it is applied to datasets that contain a large number of samples (>10K). We propose an approximative version of MetaNeighbor that does not explicitly compute the cell-cell correlation network, resulting in significant improvements in memory usage and run times.
 
-The low-memory (fast) version is used by passing the flag `fast_version = TRUE` to either MetaNeighbor or MetaNeighborUS. Other parameters are unchanged: switching from the exact to the fast version is very simple. If your dataset is particularly large, we encourage you to use SingleCellExperiment objects, a subclass of SummarizedExperiment that is able to store data in sparse representations. We also strongly encourage you to use R with OpenBLAS or MKL (see installation tutorial [here](https://www.datacamp.com/community/tutorials/installing-R-windows-mac-ubuntu)). The low memory version relies almost exclusively on matrix operations, OpenBLAS/MKL will considerably speed it up and automatically use all cores on your machine.
+The low-memory (fast) version is used by passing the flag `fast_version = TRUE` to either MetaNeighbor or MetaNeighborUS. Other parameters are unchanged: switching from the exact to the fast version is very simple. If your dataset is particularly large, we encourage you to use SingleCellExperiment objects, a subclass of SummarizedExperiment that is able to store data in sparse representations. We also strongly encourage you to use R with OpenBLAS or MKL (see installation tutorial [here](https://www.datacamp.com/community/tutorials/installing-R-windows-mac-ubuntu)). The low-memory version relies almost exclusively on matrix operations, OpenBLAS/MKL will considerably speed it up and automatically use all cores on your machine.
 
 ### Run previous example with low-memory version
 
@@ -396,7 +404,7 @@ gplots::heatmap.2(celltype_NV,
                   cexCol = 0.7)
 ```
 
-Because of the approximations in the low memory version, the AUROCs do not match exactly, but results from the low memory version are in good qualitative agreement with the exact procedure.
+Because of the approximations in the low-memory version, the AUROCs do not match exactly, but results from the low-memory version are in good qualitative agreement with the exact procedure.
 
 
 ### Apply low-memory version to large datasets
@@ -450,6 +458,8 @@ celltype_NV = MetaNeighborUS(var_genes = var_genes,
                              study_id = pancreas$study_id,
                              cell_type = pancreas$cell_type,
                              fast_version = TRUE)
+cols = rev(colorRampPalette(RColorBrewer::brewer.pal(11,"RdYlBu"))(100))
+breaks = seq(0, 1, length=101)
 gplots::heatmap.2(celltype_NV,
                   margins=c(8,8),
                   keysize=1,
@@ -474,7 +484,8 @@ Using a procedure similar to the above example, we generated a SingleCellExperim
 all_pancreas <- readRDS('all_pancreas.rds')
 dim(all_pancreas)
 ```
-Our fused datasets has 15,138 cells across 15,558 genes.
+
+Our fused dataset has 15,138 cells across 15,558 genes.
 
 #### Match labels
 
@@ -486,6 +497,8 @@ celltype_NV = MetaNeighborUS(var_genes = var_genes,
                              study_id = all_pancreas$Study_ID,
                              cell_type = all_pancreas$Celltype,
                              fast_version = TRUE)
+cols = rev(colorRampPalette(RColorBrewer::brewer.pal(11,"RdYlBu"))(100))
+breaks = seq(0, 1, length=101)
 gplots::heatmap.2(celltype_NV,
                   margins=c(8,8),
                   keysize=1,

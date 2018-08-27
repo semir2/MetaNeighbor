@@ -2,8 +2,8 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
-// [[Rcpp::export]]
-NumericMatrix normalize_cols_cpp(NumericMatrix M) {
+template<int RTYPE>
+NumericMatrix normalize_cols_cpp_imp(Matrix<RTYPE> M) {
   NumericMatrix result(M.nrow(), M.ncol());
   for (int j = 0; j < M.ncol(); j++) {
     double mean = 0;
@@ -19,6 +19,14 @@ NumericMatrix normalize_cols_cpp(NumericMatrix M) {
 }
 
 // [[Rcpp::export]]
+NumericMatrix normalize_cols_cpp(SEXP M) {
+  switch (TYPEOF(M)) {
+    case INTSXP: return normalize_cols_cpp_imp<INTSXP>(M);
+    case REALSXP: return normalize_cols_cpp_imp<REALSXP>(M);
+  }
+}
+
+// [[Rcpp::export]]
 NumericVector count_to_rank(NumericVector x, int total_count) {
   NumericVector result(x.length());
   int cumulated_total = 0;
@@ -29,6 +37,7 @@ NumericVector count_to_rank(NumericVector x, int total_count) {
   return result;
 }
 
+// [[Rcpp::export]]
 void bin_to_rank(NumericVector bins, NumericVector rank_per_bin) {
   for (int i = 0; i < bins.length(); i++) { bins[i] = rank_per_bin[bins[i]-1]; }
 }
