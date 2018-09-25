@@ -1,5 +1,5 @@
-#' Contains a collection of utility functions
-#'
+# Contains a collection of utility functions
+#
 
 # Scale matrix such that all colums sum to 0 and have l2-norm of 1
 normalize_cols <- function(M, ranked = TRUE) {

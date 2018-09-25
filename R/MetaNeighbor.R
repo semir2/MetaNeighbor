@@ -103,7 +103,7 @@ MetaNeighbor <-function(dat, i = 1, experiment_labels, celltype_labels, genesets
     return(nv_mat)
 }
 
-#' Compute ROCs according to the default procedure
+# Compute ROCs according to the default procedure
 score_default <- function(dat_sub, experiment_labels, celltype_labels) {
   dat_sub     <- stats::cor(dat_sub, method = "s")
   dat_sub     <- as.matrix(dat_sub)
@@ -117,7 +117,7 @@ score_default <- function(dat_sub, experiment_labels, celltype_labels) {
                         means = FALSE))
 }
 
-#' Compute ROCs using the approximate low memory version
+# Compute ROCs using the approximate low memory version
 score_low_mem <- function(dat_sub, study_id, celltype_labels, skip_network = TRUE) {
   # remove cells that have zero expressed genes
   nonzero_cells <- Matrix::colSums(dat_sub) > 0
@@ -143,7 +143,7 @@ score_low_mem <- function(dat_sub, study_id, celltype_labels, skip_network = TRU
   return(list(aurocs))
 }
 
-#' Compute neighbor voting for a given set of candidates and voters
+# Compute neighbor voting for a given set of candidates and voters
 compute_votes <- function(candidates, voters, voter_id, skip_network) {
   if (skip_network) {
     return(compute_votes_without_network(candidates, voters, voter_id))
