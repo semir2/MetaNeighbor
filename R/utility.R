@@ -25,9 +25,11 @@ compute_votes_without_network <- function(candidates, voters, voter_id = NULL) {
   } else {
     voter_id <- as.matrix(voter_id)
   }
-  raw_votes <- crossprod(candidates, voters %*% voter_id)
-  return(sweep(raw_votes, 2, colSums(voter_id), FUN = "+")) /
-         (c(crossprod(candidates, rowSums(voters))) + rep(ncol(voters), ncol(candidates)))
+  votes <- crossprod(candidates, voters %*% voter_id)
+  # shift to positive values and normalize node deree
+  votes <- sweep(votes, 2, colSums(voter_id), FUN = "+") /
+           (c(crossprod(candidates, rowSums(voters))) + ncol(voters))
+  return(votes)
 }
 
 # Build cell x cell correlation network from scaled matrices
@@ -81,7 +83,11 @@ compute_aurocs <- function(votes, candidate_id = NULL) {
   }
   n_positives <- colSums(positives)
   n_negatives <- nrow(positives) - n_positives
-  sum_of_positive_ranks <- t(positives) %*% apply(abs(votes), MARGIN = 2, FUN = rank)
+  sum_of_positive_ranks <- crossprod(
+    positives,
+    matrixStats::colRanks(votes, ties.method = "average", preserveShape = TRUE)
+  )
+  colnames(sum_of_positive_ranks) <- colnames(votes)
   result <- (sum_of_positive_ranks / n_positives - (n_positives+1)/2) / n_negatives
   return(result)
 }
