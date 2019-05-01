@@ -135,7 +135,7 @@ score_low_mem <- function(dat_sub, study_id, celltype_labels, skip_network = TRU
                            voter_id = celltype_labels[study_id != study,],
                            skip_network)
     all_aurocs <- compute_aurocs(
-      votes, candidate_id = celltype_labels[study_id == study, ]
+      votes, candidate_id = celltype_labels[study_id == study,, drop = FALSE]
     )
     aurocs <- cbind(aurocs, diag(all_aurocs))
   }
