@@ -34,7 +34,7 @@
 
 MetaNeighborUS <- function(var_genes, dat, i = 1, study_id, cell_type, fast_version = FALSE){
 
-    dat    <- SummarizedExperiment::assay(dat, i = i)
+    dat    <- as.matrix(SummarizedExperiment::assay(dat, i = i)
     samples <- colnames(dat)
 
     #check obj contains study_id
